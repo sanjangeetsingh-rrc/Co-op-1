@@ -1,9 +1,10 @@
 package com.sanjangeet.coop1
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,19 +30,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import com.sanjangeet.coop1.db.AppDatabase
 import com.sanjangeet.coop1.db.Notes
 import com.sanjangeet.coop1.ui.theme.Coop1Theme
 import kotlinx.coroutines.launch
+import kotlin.system.exitProcess
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             Coop1Theme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Root(
+                    BiometricAuthenticator(
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -136,5 +140,43 @@ fun Root(modifier: Modifier = Modifier) {
                 Text("+")
             }
         }
+    }
+}
+
+@Composable
+fun BiometricAuthenticator(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    var activity = context as FragmentActivity
+    var authenticated by remember { mutableStateOf(false) }
+    val executor = ContextCompat.getMainExecutor(context)
+
+    fun showBiometricPrompt() {
+        BiometricPrompt(activity, executor,
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    authenticated = true
+                }
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    exitProcess(0)
+                }
+                override fun onAuthenticationFailed() {  }
+            }
+        ).authenticate(
+            BiometricPrompt.PromptInfo.Builder()
+                .setTitle("Notes App")
+                .setDescription("Please authenticate to continue")
+                .setAllowedAuthenticators(BiometricManager.Authenticators.DEVICE_CREDENTIAL or BiometricManager.Authenticators.BIOMETRIC_WEAK)
+                .build()
+        )
+    }
+
+    LaunchedEffect(Unit) {
+        showBiometricPrompt()
+    }
+
+    if (authenticated) {
+        Root(
+            modifier = modifier
+        )
     }
 }
